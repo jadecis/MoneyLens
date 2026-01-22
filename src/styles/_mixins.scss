@@ -1,0 +1,7 @@
+@mixin card-surface($padding: 1.25rem) {
+  padding: $padding;
+  border-radius: 16px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  box-shadow: var(--shadow-card);
+}
