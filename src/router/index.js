@@ -6,6 +6,9 @@ import GoalsPage from '../pages/GoalsPage.vue';
 import BudgetsPage from '../pages/BudgetsPage.vue';
 import AccountsPage from '../pages/AccountsPage.vue';
 import ProfilePage from '../pages/ProfilePage.vue';
+import PrivacyPage from '../pages/PrivacyPage.vue';
+import TermsPage from '../pages/TermsPage.vue';
+import CookiesPage from '../pages/CookiesPage.vue';
 import { useAuthStore } from '../stores/useAuthStore.js';
 
 const routes = [
@@ -16,6 +19,9 @@ const routes = [
   { path: '/budgets', name: 'budgets', component: BudgetsPage, meta: { requiresAuth: true } },
   { path: '/accounts', name: 'accounts', component: AccountsPage, meta: { requiresAuth: true } },
   { path: '/profile', name: 'profile', component: ProfilePage, meta: { requiresAuth: true } },
+  { path: '/privacy', name: 'privacy', component: PrivacyPage, meta: { requiresAuth: false } },
+  { path: '/terms', name: 'terms', component: TermsPage, meta: { requiresAuth: false } },
+  { path: '/cookies', name: 'cookies', component: CookiesPage, meta: { requiresAuth: false } },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ];
 

@@ -1,3 +1,7 @@
+<script setup>
+import { RouterLink } from 'vue-router';
+</script>
+
 <template>
   <footer class="footer">
     <div class="footer-brand">
@@ -24,9 +28,9 @@
       </div>
       <div class="footer-col">
         <p class="label">Документы</p>
-        <a href="#">Политика конфиденциальности</a>
-        <a href="#">Пользовательское соглашение</a>
-        <a href="#">Политика cookies</a>
+        <RouterLink :to="{ name: 'privacy' }" target="_blank">Политика конфиденциальности</RouterLink>
+        <RouterLink :to="{ name: 'terms' }" target="_blank">Пользовательское соглашение</RouterLink>
+        <RouterLink :to="{ name: 'cookies' }" target="_blank">Политика cookies</RouterLink>
       </div>
       <div class="footer-col">
         <p class="label">Контакты</p>
