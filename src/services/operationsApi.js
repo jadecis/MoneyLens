@@ -34,3 +34,11 @@ export function updateOperation(login, id, payload) {
 export function deleteOperation(login, id) {
   return ajaxJson(`${API_URL}/users/${encodeURIComponent(login)}/operations/${encodeURIComponent(id)}`, 'DELETE');
 }
+
+export function fetchUserState(login) {
+  return ajaxJson(`${API_URL}/users/${encodeURIComponent(login)}/state`, 'GET');
+}
+
+export function updateUserState(login, payload) {
+  return ajaxJson(`${API_URL}/users/${encodeURIComponent(login)}/state`, 'PUT', payload);
+}

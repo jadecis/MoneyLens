@@ -1,0 +1,105 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Палитра MoneyLens</title>
+  <style>
+    :root {
+      --color-bg: #f8fafc;
+      --color-surface: rgba(255, 255, 255, 0.9);
+      --color-card: #ffffff;
+      --color-border: #e2e8f0;
+      --color-text: #0f172a;
+      --color-muted: #64748b;
+      --color-accent: #0ea5e9;
+      --color-accent-2: #22c55e;
+      --color-accent-soft: #e0f2fe;
+      --color-accent-soft-2: #ffe4e6;
+    }
+    .theme-dark {
+      --color-bg: #0b1220;
+      --color-surface: rgba(17, 24, 39, 0.9);
+      --color-card: #111827;
+      --color-border: #1f2937;
+      --color-text: #e5e7eb;
+      --color-muted: #9ca3af;
+      --color-accent: #38bdf8;
+      --color-accent-2: #34d399;
+      --color-accent-soft: #0f172a;
+      --color-accent-soft-2: #1e293b;
+    }
+    body {
+      margin: 0;
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      padding: 32px;
+      line-height: 1.4;
+    }
+    h1 {
+      margin: 0 0 24px;
+      font-size: 24px;
+      letter-spacing: -0.01em;
+    }
+    .panel {
+      padding: 16px;
+      border-radius: 16px;
+      margin-bottom: 32px;
+    }
+    .on-dark {
+      background: #0b1220;
+    }
+    .on-light {
+      background: #ffffff;
+    }
+    .swatch-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+    .box {
+      width: 96px;
+      height: 96px;
+      border-radius: 12px;
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+    }
+    .box {
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Палитра MoneyLens — светлая тема</h1>
+  <div class="panel on-dark">
+    <div class="swatch-grid">
+      <div class="box" style="background: var(--color-bg);"></div>
+      <div class="box" style="background: var(--color-surface);"></div>
+      <div class="box" style="background: var(--color-card);"></div>
+      <div class="box" style="background: var(--color-border);"></div>
+      <div class="box" style="background: var(--color-text);"></div>
+      <div class="box" style="background: var(--color-muted);"></div>
+      <div class="box" style="background: var(--color-accent);"></div>
+      <div class="box" style="background: var(--color-accent-2);"></div>
+      <div class="box" style="background: var(--color-accent-soft);"></div>
+      <div class="box" style="background: var(--color-accent-soft-2);"></div>
+    </div>
+  </div>
+
+  <h1 style="margin-top:48px;">Палитра MoneyLens — тёмная тема</h1>
+  <div class="panel on-light theme-dark">
+    <div class="swatch-grid">
+      <div class="box" style="background: var(--color-bg);"></div>
+      <div class="box" style="background: var(--color-surface);"></div>
+      <div class="box" style="background: var(--color-card);"></div>
+      <div class="box" style="background: var(--color-border);"></div>
+      <div class="box" style="background: var(--color-text);"></div>
+      <div class="box" style="background: var(--color-muted);"></div>
+      <div class="box" style="background: var(--color-accent);"></div>
+      <div class="box" style="background: var(--color-accent-2);"></div>
+      <div class="box" style="background: var(--color-accent-soft);"></div>
+      <div class="box" style="background: var(--color-accent-soft-2);"></div>
+    </div>
+  </div>
+</body>
+</html>

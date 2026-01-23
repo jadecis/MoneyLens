@@ -1,30 +1,41 @@
-<script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+﻿<script setup>
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useAuthStore } from '../stores/useAuthStore.js';
 import { useOperationsStore } from '../stores/useOperationsStore.js';
+import { fetchUserState, updateUserState } from '../services/operationsApi.js';
 
 const auth = useAuthStore();
 const ops = useOperationsStore();
 
-const storageKey = computed(() => `ml-goals-${auth.user?.value?.login || auth.user?.login || 'guest'}`);
 const goals = ref([]);
 const form = reactive({ id: null, name: '', target: '', saved: '' });
-const contribution = reactive({ goalId: null, amount: '', from: 'Основной счет' });
+const contribution = reactive({ goalId: null, amount: '', from: 'Общий счет' });
 const message = ref('');
 const error = ref('');
 const busy = ref(false);
 
-function loadGoals() {
+async function loadGoals() {
+  const login = auth.user?.value?.login || auth.user?.login;
+  if (!login) {
+    goals.value = [];
+    return;
+  }
   try {
-    const raw = localStorage.getItem(storageKey.value);
-    goals.value = raw ? JSON.parse(raw) : [];
+    const resp = await fetchUserState(login);
+    goals.value = Array.isArray(resp.goals) ? resp.goals : [];
   } catch {
     goals.value = [];
   }
 }
 
-function persist() {
-  localStorage.setItem(storageKey.value, JSON.stringify(goals.value));
+async function persist() {
+  const login = auth.user?.value?.login || auth.user?.login;
+  if (!login) return;
+  try {
+    await updateUserState(login, { goals: goals.value });
+  } catch {
+    // ignore errors silently
+  }
 }
 
 const enrichedGoals = computed(() =>
@@ -118,7 +129,7 @@ async function contributeToGoal(goal) {
 }
 
 const accountOptions = computed(() => {
-  const set = new Set(['Основной счет', 'Копилка']);
+  const set = new Set(['Общий счет', 'Копилка']);
   ops.accounts.value.forEach((a) => set.add(a.name));
   return Array.from(set);
 });
@@ -129,6 +140,13 @@ onMounted(() => {
     ops.loadOperations().catch(() => {});
   }
 });
+
+watch(
+  () => auth.user?.value?.login || auth.user?.login,
+  () => {
+    loadGoals();
+  },
+);
 </script>
 
 <template>
@@ -152,11 +170,11 @@ onMounted(() => {
           </label>
           <label class="field">
             <span>Целевой размер</span>
-            <input v-model="form.target" type="number" min="0" step="1000" placeholder="150000" required />
+            <input v-model="form.target" type="number" min="1" step="1" placeholder="150000" required />
           </label>
           <label class="field">
             <span>Уже накоплено (опционально)</span>
-            <input v-model="form.saved" type="number" min="0" step="500" placeholder="0" />
+            <input v-model="form.saved" type="number" min="1" step="1" placeholder="0" />
           </label>
         </div>
         <div class="form-actions">
@@ -181,7 +199,7 @@ onMounted(() => {
           <div class="goal-top">
             <div>
               <p class="strong">{{ goal.name }}</p>
-              <p class="muted">{{ goal.saved.toLocaleString('ru-RU') }} / {{ goal.target.toLocaleString('ru-RU') }} ₽</p>
+              <p class="muted">{{ goal.saved.toLocaleString('ru-RU') }} / {{ goal.target.toLocaleString('ru-RU') }} в‚Ѕ</p>
             </div>
             <span class="chip">{{ goal.progress }}%</span>
           </div>
@@ -190,14 +208,14 @@ onMounted(() => {
           </div>
           <div class="operations-grid">
             <label class="field">
-              <span>Счет-источник</span>
+              <span>Счёт-источник</span>
               <select v-model="contribution.from">
                 <option v-for="acc in accountOptions" :key="acc" :value="acc">{{ acc }}</option>
               </select>
             </label>
             <label class="field">
               <span>Сумма взноса</span>
-              <input v-model="contribution.amount" type="number" min="0" step="500" placeholder="5000" />
+              <input v-model="contribution.amount" type="number" min="1" step="1" placeholder="5000" />
             </label>
           </div>
           <div class="tx-actions">
@@ -210,3 +228,5 @@ onMounted(() => {
     </div>
   </main>
 </template>
+
+

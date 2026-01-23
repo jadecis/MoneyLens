@@ -1,12 +1,11 @@
-<script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+﻿<script setup>
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useAuthStore } from '../stores/useAuthStore.js';
 import { useOperationsStore } from '../stores/useOperationsStore.js';
+import { fetchUserState, updateUserState } from '../services/operationsApi.js';
 
 const auth = useAuthStore();
 const ops = useOperationsStore();
-
-const storageKey = computed(() => `ml-budgets-${auth.user?.value?.login || auth.user?.login || 'guest'}`);
 
 const budgets = ref([]);
 const form = reactive({ id: null, name: '', limit: '' });
@@ -28,17 +27,28 @@ const enhancedBudgets = computed(() =>
   })),
 );
 
-function loadBudgets() {
+async function loadBudgets() {
+  const login = auth.user?.value?.login || auth.user?.login;
+  if (!login) {
+    budgets.value = [];
+    return;
+  }
   try {
-    const raw = localStorage.getItem(storageKey.value);
-    budgets.value = raw ? JSON.parse(raw) : [];
+    const resp = await fetchUserState(login);
+    budgets.value = Array.isArray(resp.budgets) ? resp.budgets : [];
   } catch {
     budgets.value = [];
   }
 }
 
-function persist() {
-  localStorage.setItem(storageKey.value, JSON.stringify(budgets.value));
+async function persist() {
+  const login = auth.user?.value?.login || auth.user?.login;
+  if (!login) return;
+  try {
+    await updateUserState(login, { budgets: budgets.value });
+  } catch {
+    // ignore
+  }
 }
 
 function resetForm() {
@@ -77,14 +87,14 @@ async function handleSubmit() {
   const exists = budgets.value.findIndex((b) => b.id === payload.id);
   if (exists === -1) budgets.value = [...budgets.value, payload];
   else budgets.value = budgets.value.map((b) => (b.id === payload.id ? payload : b));
-  persist();
+  await persist();
   resetForm();
   message.value = 'Бюджет сохранен';
   isSaving.value = false;
 }
 
-onMounted(() => {
-  loadBudgets();
+onMounted(async () => {
+  await loadBudgets();
   if (!ops.operations.value.length && !ops.loading.value) {
     ops.loadOperations().catch(() => {});
   }
@@ -114,7 +124,7 @@ onMounted(() => {
           </label>
           <label class="field">
             <span>Лимит в месяц</span>
-            <input v-model="form.limit" type="number" min="0" step="100" placeholder="30000" required />
+            <input v-model="form.limit" type="number" min="1" step="1" placeholder="30000" required />
           </label>
         </div>
         <div class="form-actions">
@@ -138,7 +148,7 @@ onMounted(() => {
         <article v-for="item in enhancedBudgets" :key="item.id" class="budget-card">
           <div class="budget-top">
             <p class="strong">{{ item.name }}</p>
-            <p class="muted">{{ item.used.toLocaleString('ru-RU') }} / {{ item.limit.toLocaleString('ru-RU') }} ₽</p>
+            <p class="muted">{{ item.used.toLocaleString('ru-RU') }} / {{ item.limit.toLocaleString('ru-RU') }} в‚Ѕ</p>
           </div>
           <div class="progress thin">
             <div class="progress-fill alt" :style="{ width: `${item.progress}%` }"></div>
@@ -152,3 +162,4 @@ onMounted(() => {
     </div>
   </main>
 </template>
+

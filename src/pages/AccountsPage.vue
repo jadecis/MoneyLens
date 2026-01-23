@@ -227,7 +227,7 @@ resetForms();
           </label>
           <label class="field">
             <span>Начальный баланс (опционально)</span>
-            <input v-model="createForm.balance" type="number" min="0" step="0.01" placeholder="0" />
+            <input v-model="createForm.balance" type="number" min="1" step="1" placeholder="0" />
           </label>
         </div>
         <div class="form-actions">
@@ -259,7 +259,7 @@ resetForms();
           </label>
           <label class="field">
             <span>Сумма</span>
-            <input v-model="quickForm.amount" type="number" min="0" step="0.01" placeholder="0" required />
+            <input v-model="quickForm.amount" type="number" min="1" step="1" placeholder="0" required />
           </label>
         </div>
         <div class="form-actions">
@@ -289,7 +289,7 @@ resetForms();
           </label>
           <label class="field">
             <span>Сумма</span>
-            <input v-model="transferForm.amount" type="number" min="0" step="0.01" placeholder="0" required />
+            <input v-model="transferForm.amount" type="number" min="1" step="1" placeholder="0" required />
           </label>
         </div>
         <div class="form-actions">

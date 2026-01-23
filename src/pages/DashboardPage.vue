@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/useAuthStore.js';
 import { useOperationsStore } from '../stores/useOperationsStore.js';
+import { fetchUserState } from '../services/operationsApi.js';
 
 const auth = useAuthStore();
 const ops = useOperationsStore();
@@ -14,24 +15,25 @@ const rangeFrom = ref('');
 const rangeTo = ref('');
 const colors = ['#22c55e', '#0ea5e9', '#a855f7', '#f97316', '#fbbf24', '#14b8a6', '#ef4444', '#6366f1'];
 
-const goalsKey = computed(() => `ml-goals-${auth.user?.value?.login || auth.user?.login || 'guest'}`);
-const budgetsKey = computed(() => `ml-budgets-${auth.user?.value?.login || auth.user?.login || 'guest'}`);
-
-function loadLocalCollections() {
-  try {
-    goals.value = JSON.parse(localStorage.getItem(goalsKey.value)) || [];
-  } catch {
+async function loadUserState() {
+  const login = auth.user?.value?.login || auth.user?.login;
+  if (!login) {
     goals.value = [];
+    budgets.value = [];
+    return;
   }
   try {
-    budgets.value = JSON.parse(localStorage.getItem(budgetsKey.value)) || [];
+    const resp = await fetchUserState(login);
+    goals.value = Array.isArray(resp.goals) ? resp.goals : [];
+    budgets.value = Array.isArray(resp.budgets) ? resp.budgets : [];
   } catch {
+    goals.value = [];
     budgets.value = [];
   }
 }
 
-onMounted(() => {
-  loadLocalCollections();
+onMounted(async () => {
+  await loadUserState();
   if (!ops.operations.value.length && !ops.loading.value) {
     ops.loadOperations().catch(() => {});
   }

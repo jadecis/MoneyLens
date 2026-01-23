@@ -1,10 +1,17 @@
 import { computed, reactive, toRefs, watch } from 'vue';
-import { createOperation, deleteOperation, fetchOperations, updateOperation } from '../services/operationsApi.js';
+import {
+  createOperation,
+  deleteOperation,
+  fetchOperations,
+  updateOperation,
+  fetchUserState,
+  updateUserState,
+} from '../services/operationsApi.js';
 import { useAuthStore } from './useAuthStore.js';
 
 const state = reactive({
   operations: [],
-  accountsList: ['Общий счет'],
+  accountsList: ['\u041e\u0431\u0449\u0438\u0439 \u0441\u0447\u0435\u0442'],
   loading: false,
   error: null,
   lastSync: null,
@@ -16,26 +23,26 @@ export function useOperationsStore() {
   const auth = useAuthStore();
   const login = computed(() => auth.user?.value?.login || auth.user?.login || null);
 
-  const accountStorageKey = computed(() => (login.value ? `ml-accounts-${login.value}` : null));
-
-  const loadAccounts = () => {
-    const key = accountStorageKey.value;
-    if (!key) {
+  const loadAccounts = async () => {
+    if (!login.value) {
       state.accountsList = ['Общий счет'];
       return;
     }
     try {
-      const stored = JSON.parse(localStorage.getItem(key));
-      state.accountsList = Array.isArray(stored) && stored.length ? stored : ['Общий счет'];
+      const resp = await fetchUserState(login.value);
+      const accounts = Array.isArray(resp.accounts) && resp.accounts.length ? resp.accounts : ['Общий счет'];
+      state.accountsList = accounts;
     } catch {
       state.accountsList = ['Общий счет'];
     }
   };
 
-  const saveAccounts = () => {
-    const key = accountStorageKey.value;
-    if (key) {
-      localStorage.setItem(key, JSON.stringify(state.accountsList));
+  const saveAccounts = async () => {
+    if (!login.value) return;
+    try {
+      await updateUserState(login.value, { accounts: state.accountsList });
+    } catch {
+      // ignore
     }
   };
 

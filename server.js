@@ -57,13 +57,18 @@ function userFilePath(login) {
   return path.join(DATA_DIR, `${login}.json`);
 }
 
+function ensureUserDefaults(data) {
+  if (!Array.isArray(data.operations)) data.operations = [];
+  if (!Array.isArray(data.goals)) data.goals = [];
+  if (!Array.isArray(data.budgets)) data.budgets = [];
+  if (!Array.isArray(data.accounts) || !data.accounts.length) data.accounts = ['Общий счет'];
+  return data;
+}
+
 async function loadUser(login) {
   const userFile = userFilePath(login);
   const raw = await fs.readFile(userFile, 'utf-8');
-  const data = JSON.parse(raw);
-  if (!Array.isArray(data.operations)) {
-    data.operations = [];
-  }
+  const data = ensureUserDefaults(JSON.parse(raw));
   return { data, userFile };
 }
 
@@ -93,12 +98,15 @@ async function handleRegister(req, res) {
       // ok, not exists
     }
 
-    const initialUser = {
+    const initialUser = ensureUserDefaults({
       login,
       password,
       profile,
       operations: [],
-    };
+      goals: [],
+      budgets: [],
+      accounts: ['Общий счет'],
+    });
 
     await fs.writeFile(userFile, JSON.stringify(initialUser, null, 2), 'utf-8');
 
@@ -162,15 +170,19 @@ async function handleUpdateUser(req, res, loginParam) {
       stored = { login, password: body.password, profile: {}, operations: [] };
     }
 
+    const safeStored = ensureUserDefaults(stored);
     const updated = {
-      login: stored.login,
-      password: body.password?.trim() || stored.password,
+      login: safeStored.login,
+      password: body.password?.trim() || safeStored.password,
       profile: {
-        name: body.name ?? stored.profile?.name ?? '',
-        email: body.email ?? stored.profile?.email ?? '',
-        phone: body.phone ?? stored.profile?.phone ?? '',
+        name: body.name ?? safeStored.profile?.name ?? '',
+        email: body.email ?? safeStored.profile?.email ?? '',
+        phone: body.phone ?? safeStored.profile?.phone ?? '',
       },
-      operations: Array.isArray(stored.operations) ? stored.operations : [],
+      operations: safeStored.operations,
+      goals: safeStored.goals,
+      budgets: safeStored.budgets,
+      accounts: safeStored.accounts,
     };
 
     await saveUser(userFile, updated);
@@ -194,6 +206,39 @@ async function handleGetUser(req, res, loginParam) {
     sendJson(res, 200, { ok: true, user: { login: stored.login, profile: stored.profile || {} } });
   } catch {
     sendJson(res, 404, { error: 'user not found' });
+  }
+}
+
+async function handleGetState(res, login) {
+  try {
+    const { data } = await loadUser(login);
+    sendJson(res, 200, {
+      ok: true,
+      goals: data.goals || [],
+      budgets: data.budgets || [],
+      accounts: data.accounts || [],
+    });
+  } catch (err) {
+    const status = err.code === 'ENOENT' ? 404 : 500;
+    sendJson(res, status, { error: err.code === 'ENOENT' ? 'user not found' : 'internal error' });
+  }
+}
+
+async function handleUpdateState(req, res, login) {
+  try {
+    const body = await readBody(req);
+    const { data, userFile } = await loadUser(login);
+    const next = ensureUserDefaults(data);
+
+    if (Array.isArray(body.goals)) next.goals = body.goals;
+    if (Array.isArray(body.budgets)) next.budgets = body.budgets;
+    if (Array.isArray(body.accounts)) next.accounts = body.accounts.length ? body.accounts : ['Общий счет'];
+
+    await saveUser(userFile, next);
+    sendJson(res, 200, { ok: true });
+  } catch (err) {
+    const status = err.code === 'ENOENT' ? 404 : 500;
+    sendJson(res, status, { error: err.code === 'ENOENT' ? 'user not found' : 'internal error' });
   }
 }
 
@@ -343,6 +388,17 @@ async function requestHandler(req, res) {
     if (!login) {
       sendJson(res, 400, { error: 'invalid login' });
       return;
+    }
+
+    if (operationsSegment === 'state') {
+      if (req.method === 'GET') {
+        await handleGetState(res, login);
+        return;
+      }
+      if (req.method === 'PUT') {
+        await handleUpdateState(req, res, login);
+        return;
+      }
     }
 
     if (operationsSegment === 'operations') {

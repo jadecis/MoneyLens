@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useOperationsStore } from '../stores/useOperationsStore.js';
 import { useAuthStore } from '../stores/useAuthStore.js';
 import { watch } from 'vue';
+import { fetchUserState } from '../services/operationsApi.js';
 
 const operations = useOperationsStore();
 const auth = useAuthStore();
@@ -35,21 +36,14 @@ const form = reactive(defaultForm());
 const message = ref('');
 const error = ref('');
 const isSaving = ref(false);
+const budgets = ref([]);
 
 const isTransfer = computed(() => form.type === 'transfer');
 const isEditing = computed(() => Boolean(form.id));
 
-const accountOptions = computed(() => (operations.accountsList.value.length ? operations.accountsList.value : ['Общий счет']));
-
-const budgets = computed(() => {
-  const key = `ml-budgets-${auth.user?.value?.login || auth.user?.login || 'guest'}`;
-  try {
-    const stored = JSON.parse(localStorage.getItem(key));
-    return Array.isArray(stored) ? stored : [];
-  } catch {
-    return [];
-  }
-});
+const accountOptions = computed(() =>
+  operations.accountsList.value.length ? operations.accountsList.value : ['Общий счет'],
+);
 
 const categories = computed(() => {
   const base = categoryPresets[form.type] || categoryPresets.expense;
@@ -81,6 +75,20 @@ const filters = reactive({
   dateFrom: '',
   dateTo: '',
 });
+
+async function loadBudgets() {
+  const login = auth.user?.value?.login || auth.user?.login;
+  if (!login) {
+    budgets.value = [];
+    return;
+  }
+  try {
+    const resp = await fetchUserState(login);
+    budgets.value = Array.isArray(resp.budgets) ? resp.budgets : [];
+  } catch {
+    budgets.value = [];
+  }
+}
 
 const filtered = computed(() => {
   return sorted.value.filter((op) => {
@@ -194,7 +202,8 @@ async function handleSubmit() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await loadBudgets();
   if (!operations.operations.value.length && !operations.loading.value) {
     operations.loadOperations().catch(() => {});
   }
@@ -250,7 +259,7 @@ watch(
 
           <label class="field">
             <span>Сумма</span>
-            <input v-model="form.amount" type="number" min="0" step="0.01" placeholder="0" required />
+            <input v-model="form.amount" type="number" min="1" step="1" placeholder="0" required />
           </label>
 
           <label v-if="!isTransfer" class="field">
