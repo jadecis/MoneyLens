@@ -1,6 +1,6 @@
-# MoneyLens
+﻿# MoneyLens
 
-This project now uses Node.js with Vue 3 + Vite.
+MoneyLens is a React + Vite web app with a Node.js API.
 
 ## Development
 - Install dependencies: `npm install`
@@ -11,4 +11,3 @@ This project now uses Node.js with Vue 3 + Vite.
 - Preview built app: `npm run preview`
 
 Auth API stores users under `users/<login>.json` (lowercased login). Register/login via `/api/register` and `/api/login`.
-
