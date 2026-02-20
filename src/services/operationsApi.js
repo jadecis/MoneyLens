@@ -1,44 +1,63 @@
-import $ from 'jquery';
+﻿const API_URL = import.meta.env.VITE_API_URL || '/api';
 
-const API_URL = import.meta.env.VITE_API_URL || '/api';
-
-function ajaxJson(url, method, data) {
-  return new Promise((resolve, reject) => {
-    $.ajax({
-      url,
-      method,
-      contentType: 'application/json',
-      data: data ? JSON.stringify(data) : undefined,
-      dataType: 'json',
-      success: (resp) => resolve(resp),
-      error: (xhr) => {
-        const message = xhr.responseJSON?.error || xhr.responseText || 'Request failed';
-        reject(new Error(message));
-      },
-    });
+async function requestJson(path, options = {}) {
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+    ...options,
   });
+
+  if (!response.ok) {
+    let message = 'Request failed';
+    try {
+      const data = await response.json();
+      message = data.error || message;
+    } catch {
+      try {
+        message = await response.text();
+      } catch {
+        // ignore
+      }
+    }
+    throw new Error(message || 'Request failed');
+  }
+
+  return response.json();
 }
 
 export function fetchOperations(login) {
-  return ajaxJson(`${API_URL}/users/${encodeURIComponent(login)}/operations`, 'GET');
+  return requestJson(`/users/${encodeURIComponent(login)}/operations`);
 }
 
 export function createOperation(login, payload) {
-  return ajaxJson(`${API_URL}/users/${encodeURIComponent(login)}/operations`, 'POST', payload);
+  return requestJson(`/users/${encodeURIComponent(login)}/operations`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export function updateOperation(login, id, payload) {
-  return ajaxJson(`${API_URL}/users/${encodeURIComponent(login)}/operations/${encodeURIComponent(id)}`, 'PUT', payload);
+  return requestJson(`/users/${encodeURIComponent(login)}/operations/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
 }
 
 export function deleteOperation(login, id) {
-  return ajaxJson(`${API_URL}/users/${encodeURIComponent(login)}/operations/${encodeURIComponent(id)}`, 'DELETE');
+  return requestJson(`/users/${encodeURIComponent(login)}/operations/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
 }
 
 export function fetchUserState(login) {
-  return ajaxJson(`${API_URL}/users/${encodeURIComponent(login)}/state`, 'GET');
+  return requestJson(`/users/${encodeURIComponent(login)}/state`);
 }
 
 export function updateUserState(login, payload) {
-  return ajaxJson(`${API_URL}/users/${encodeURIComponent(login)}/state`, 'PUT', payload);
+  return requestJson(`/users/${encodeURIComponent(login)}/state`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
 }

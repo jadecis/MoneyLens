@@ -1,4 +1,4 @@
-import http from 'http';
+﻿import http from 'http';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -6,6 +6,13 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.API_PORT || 3001;
 const DATA_DIR = path.join(__dirname, 'users');
+const DEFAULT_ACCOUNT = 'РћР±С‰РёР№ СЃС‡РµС‚';
+
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
 
 async function ensureDataDir() {
   try {
@@ -18,39 +25,7 @@ async function ensureDataDir() {
 function normalizeLogin(login) {
   if (!login) return null;
   const normalized = login.trim().toLowerCase();
-  const valid = /^[a-z0-9._-]+$/.test(normalized);
-  return valid ? normalized : null;
-}
-
-async function readBody(req) {
-  return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', (chunk) => {
-      data += chunk;
-      if (data.length > 1e6) {
-        req.socket.destroy();
-        reject(new Error('Payload too large'));
-      }
-    });
-    req.on('end', () => {
-      try {
-        const parsed = data ? JSON.parse(data) : {};
-        resolve(parsed);
-      } catch (err) {
-        reject(new Error('Invalid JSON'));
-      }
-    });
-  });
-}
-
-function sendJson(res, status, payload) {
-  res.writeHead(status, {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  });
-  res.end(JSON.stringify(payload));
+  return /^[a-z0-9._-]+$/.test(normalized) ? normalized : null;
 }
 
 function userFilePath(login) {
@@ -61,19 +36,57 @@ function ensureUserDefaults(data) {
   if (!Array.isArray(data.operations)) data.operations = [];
   if (!Array.isArray(data.goals)) data.goals = [];
   if (!Array.isArray(data.budgets)) data.budgets = [];
-  if (!Array.isArray(data.accounts) || !data.accounts.length) data.accounts = ['Общий счет'];
+  if (!Array.isArray(data.accounts) || !data.accounts.length) data.accounts = [DEFAULT_ACCOUNT];
   return data;
 }
 
 async function loadUser(login) {
   const userFile = userFilePath(login);
   const raw = await fs.readFile(userFile, 'utf-8');
-  const data = ensureUserDefaults(JSON.parse(raw));
-  return { data, userFile };
+  return { data: ensureUserDefaults(JSON.parse(raw)), userFile };
 }
 
 async function saveUser(userFile, data) {
   await fs.writeFile(userFile, JSON.stringify(data, null, 2), 'utf-8');
+}
+
+function sendJson(res, status, payload) {
+  res.writeHead(status, {
+    'Content-Type': 'application/json',
+    ...CORS_HEADERS,
+  });
+  res.end(JSON.stringify(payload));
+}
+
+function sendUserNotFound(res, message = 'user not found') {
+  sendJson(res, 404, { error: message });
+}
+
+function isOperationValidationError(err) {
+  if (!err?.message) return false;
+  return err.message === 'invalid type' || err.message.includes('account') || err.message.includes('amount');
+}
+
+async function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+
+    req.on('data', (chunk) => {
+      data += chunk;
+      if (data.length > 1e6) {
+        req.socket.destroy();
+        reject(new Error('Payload too large'));
+      }
+    });
+
+    req.on('end', () => {
+      try {
+        resolve(data ? JSON.parse(data) : {});
+      } catch {
+        reject(new Error('Invalid JSON'));
+      }
+    });
+  });
 }
 
 async function handleRegister(req, res) {
@@ -81,22 +94,23 @@ async function handleRegister(req, res) {
     const body = await readBody(req);
     const login = normalizeLogin(body.login);
     const password = body.password?.trim();
+
     if (!login || !password) {
       sendJson(res, 400, { error: 'login and password are required' });
       return;
     }
 
-    const profile = { name: body.name || '', email: body.email || '' };
-    if (body.phone) profile.phone = body.phone;
     const userFile = userFilePath(login);
-
     try {
       await fs.access(userFile);
       sendJson(res, 409, { error: 'user already exists' });
       return;
     } catch {
-      // ok, not exists
+      // user does not exist
     }
+
+    const profile = { name: body.name || '', email: body.email || '' };
+    if (body.phone) profile.phone = body.phone;
 
     const initialUser = ensureUserDefaults({
       login,
@@ -105,11 +119,10 @@ async function handleRegister(req, res) {
       operations: [],
       goals: [],
       budgets: [],
-      accounts: ['Общий счет'],
+      accounts: [DEFAULT_ACCOUNT],
     });
 
-    await fs.writeFile(userFile, JSON.stringify(initialUser, null, 2), 'utf-8');
-
+    await saveUser(userFile, initialUser);
     sendJson(res, 200, { ok: true, login });
   } catch (err) {
     console.error('Register error', err);
@@ -122,23 +135,22 @@ async function handleLogin(req, res) {
     const body = await readBody(req);
     const login = normalizeLogin(body.login);
     const password = body.password?.trim();
+
     if (!login || !password) {
       sendJson(res, 400, { error: 'login and password are required' });
       return;
     }
 
-    const userFile = userFilePath(login);
     let stored;
     try {
-      const raw = await fs.readFile(userFile, 'utf-8');
-      stored = JSON.parse(raw);
+      ({ data: stored } = await loadUser(login));
     } catch {
-      sendJson(res, 404, { error: 'Логин не найден' });
+      sendUserNotFound(res, 'Р›РѕРіРёРЅ РЅРµ РЅР°Р№РґРµРЅ');
       return;
     }
 
     if (stored.password !== password) {
-      sendJson(res, 401, { error: 'Неправильный пароль' });
+      sendJson(res, 401, { error: 'РќРµРїСЂР°РІРёР»СЊРЅС‹Р№ РїР°СЂРѕР»СЊ' });
       return;
     }
 
@@ -149,22 +161,25 @@ async function handleLogin(req, res) {
   }
 }
 
-async function handleUpdateUser(req, res, loginParam) {
+async function handleGetUser(res, login) {
   try {
-    const login = normalizeLogin(loginParam);
-    if (!login) {
-      sendJson(res, 400, { error: 'invalid login' });
-      return;
-    }
+    const { data } = await loadUser(login);
+    sendJson(res, 200, { ok: true, user: { login: data.login, profile: data.profile || {} } });
+  } catch {
+    sendUserNotFound(res);
+  }
+}
+
+async function handleUpdateUser(req, res, login) {
+  try {
     const body = await readBody(req);
-    const userFile = userFilePath(login);
     let stored;
+
     try {
-      const raw = await fs.readFile(userFile, 'utf-8');
-      stored = JSON.parse(raw);
+      ({ data: stored } = await loadUser(login));
     } catch {
       if (!body.password) {
-        sendJson(res, 404, { error: 'Логин не найден' });
+        sendUserNotFound(res, 'Р›РѕРіРёРЅ РЅРµ РЅР°Р№РґРµРЅ');
         return;
       }
       stored = { login, password: body.password, profile: {}, operations: [] };
@@ -185,27 +200,11 @@ async function handleUpdateUser(req, res, loginParam) {
       accounts: safeStored.accounts,
     };
 
-    await saveUser(userFile, updated);
+    await saveUser(userFilePath(login), updated);
     sendJson(res, 200, { ok: true, user: { login: updated.login, profile: updated.profile } });
   } catch (err) {
     console.error('Update user error', err);
     sendJson(res, 500, { error: 'internal error' });
-  }
-}
-
-async function handleGetUser(req, res, loginParam) {
-  const login = normalizeLogin(loginParam);
-  if (!login) {
-    sendJson(res, 400, { error: 'invalid login' });
-    return;
-  }
-  const userFile = userFilePath(login);
-  try {
-    const raw = await fs.readFile(userFile, 'utf-8');
-    const stored = JSON.parse(raw);
-    sendJson(res, 200, { ok: true, user: { login: stored.login, profile: stored.profile || {} } });
-  } catch {
-    sendJson(res, 404, { error: 'user not found' });
   }
 }
 
@@ -214,9 +213,9 @@ async function handleGetState(res, login) {
     const { data } = await loadUser(login);
     sendJson(res, 200, {
       ok: true,
-      goals: data.goals || [],
-      budgets: data.budgets || [],
-      accounts: data.accounts || [],
+      goals: data.goals,
+      budgets: data.budgets,
+      accounts: data.accounts,
     });
   } catch (err) {
     const status = err.code === 'ENOENT' ? 404 : 500;
@@ -228,13 +227,12 @@ async function handleUpdateState(req, res, login) {
   try {
     const body = await readBody(req);
     const { data, userFile } = await loadUser(login);
-    const next = ensureUserDefaults(data);
 
-    if (Array.isArray(body.goals)) next.goals = body.goals;
-    if (Array.isArray(body.budgets)) next.budgets = body.budgets;
-    if (Array.isArray(body.accounts)) next.accounts = body.accounts.length ? body.accounts : ['Общий счет'];
+    if (Array.isArray(body.goals)) data.goals = body.goals;
+    if (Array.isArray(body.budgets)) data.budgets = body.budgets;
+    if (Array.isArray(body.accounts)) data.accounts = body.accounts.length ? body.accounts : [DEFAULT_ACCOUNT];
 
-    await saveUser(userFile, next);
+    await saveUser(userFile, data);
     sendJson(res, 200, { ok: true });
   } catch (err) {
     const status = err.code === 'ENOENT' ? 404 : 500;
@@ -245,19 +243,21 @@ async function handleUpdateState(req, res, login) {
 function validateOperation(body) {
   const type = typeof body.type === 'string' ? body.type.trim().toLowerCase() : '';
   const amount = Number(body.amount);
+
   if (!['income', 'expense', 'transfer'].includes(type)) {
     throw new Error('invalid type');
   }
+
   if (!Number.isFinite(amount) || amount <= 0) {
     throw new Error('amount must be positive number');
   }
-  const date = body.date ? new Date(body.date).toISOString() : new Date().toISOString();
+
   const base = {
     type,
     amount,
     category: (body.category || '').toString().trim() || 'Uncategorized',
     note: (body.note || '').toString().trim(),
-    date,
+    date: body.date ? new Date(body.date).toISOString() : new Date().toISOString(),
     account: (body.account || '').toString().trim() || null,
     accountFrom: (body.accountFrom || '').toString().trim() || null,
     accountTo: (body.accountTo || '').toString().trim() || null,
@@ -277,8 +277,7 @@ function validateOperation(body) {
 async function handleGetOperations(res, login) {
   try {
     const { data } = await loadUser(login);
-    const list = Array.isArray(data.operations) ? data.operations : [];
-    sendJson(res, 200, { ok: true, operations: list });
+    sendJson(res, 200, { ok: true, operations: data.operations || [] });
   } catch (err) {
     const status = err.code === 'ENOENT' ? 404 : 500;
     sendJson(res, status, { error: err.code === 'ENOENT' ? 'user not found' : 'internal error' });
@@ -290,20 +289,21 @@ async function handleCreateOperation(req, res, login) {
     const body = await readBody(req);
     const parsed = validateOperation(body);
     const { data, userFile } = await loadUser(login);
+
     const id = body.id || Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
     const now = new Date().toISOString();
-    const op = { ...parsed, id, createdAt: now, updatedAt: now };
-    data.operations = Array.isArray(data.operations) ? data.operations : [];
-    data.operations.push(op);
+    const operation = { ...parsed, id, createdAt: now, updatedAt: now };
+
+    data.operations.push(operation);
     await saveUser(userFile, data);
-    sendJson(res, 200, { ok: true, operation: op });
+    sendJson(res, 200, { ok: true, operation });
   } catch (err) {
-    if (err.message === 'invalid type' || err.message.includes('account') || err.message.includes('amount')) {
+    if (isOperationValidationError(err)) {
       sendJson(res, 400, { error: err.message });
       return;
     }
     if (err.code === 'ENOENT') {
-      sendJson(res, 404, { error: 'user not found' });
+      sendUserNotFound(res);
       return;
     }
     console.error('Create operation error', err);
@@ -316,23 +316,30 @@ async function handleUpdateOperation(req, res, login, opId) {
     const body = await readBody(req);
     const parsed = validateOperation(body);
     const { data, userFile } = await loadUser(login);
-    const idx = (data.operations || []).findIndex((op) => op.id === opId);
+
+    const idx = data.operations.findIndex((op) => op.id === opId);
     if (idx === -1) {
       sendJson(res, 404, { error: 'operation not found' });
       return;
     }
-    const now = new Date().toISOString();
-    const updated = { ...data.operations[idx], ...parsed, updatedAt: now, id: opId };
+
+    const updated = {
+      ...data.operations[idx],
+      ...parsed,
+      updatedAt: new Date().toISOString(),
+      id: opId,
+    };
+
     data.operations[idx] = updated;
     await saveUser(userFile, data);
     sendJson(res, 200, { ok: true, operation: updated });
   } catch (err) {
-    if (err.message === 'invalid type' || err.message.includes('account') || err.message.includes('amount')) {
+    if (isOperationValidationError(err)) {
       sendJson(res, 400, { error: err.message });
       return;
     }
     if (err.code === 'ENOENT') {
-      sendJson(res, 404, { error: 'user not found' });
+      sendUserNotFound(res);
       return;
     }
     console.error('Update operation error', err);
@@ -343,12 +350,13 @@ async function handleUpdateOperation(req, res, login, opId) {
 async function handleDeleteOperation(res, login, opId) {
   try {
     const { data, userFile } = await loadUser(login);
-    const list = Array.isArray(data.operations) ? data.operations : [];
-    const next = list.filter((op) => op.id !== opId);
-    if (next.length === list.length) {
+    const next = data.operations.filter((op) => op.id !== opId);
+
+    if (next.length === data.operations.length) {
       sendJson(res, 404, { error: 'operation not found' });
       return;
     }
+
     data.operations = next;
     await saveUser(userFile, data);
     sendJson(res, 200, { ok: true });
@@ -360,11 +368,7 @@ async function handleDeleteOperation(res, login, opId) {
 
 async function requestHandler(req, res) {
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    });
+    res.writeHead(204, CORS_HEADERS);
     res.end();
     return;
   }
@@ -381,54 +385,43 @@ async function requestHandler(req, res) {
     return;
   }
 
-  if (url.pathname.startsWith('/api/users/')) {
-    const [, , , loginSegment, operationsSegment, opId] = url.pathname.split('/');
-    const login = normalizeLogin(loginSegment);
+  if (!url.pathname.startsWith('/api/users/')) {
+    sendJson(res, 404, { error: 'not found' });
+    return;
+  }
 
-    if (!login) {
-      sendJson(res, 400, { error: 'invalid login' });
-      return;
-    }
+  const [, , , loginSegment, subPath, opId] = url.pathname.split('/');
+  const login = normalizeLogin(loginSegment);
 
-    if (operationsSegment === 'state') {
-      if (req.method === 'GET') {
-        await handleGetState(res, login);
-        return;
-      }
-      if (req.method === 'PUT') {
-        await handleUpdateState(req, res, login);
-        return;
-      }
-    }
+  if (!login) {
+    sendJson(res, 400, { error: 'invalid login' });
+    return;
+  }
 
-    if (operationsSegment === 'operations') {
-      if (req.method === 'GET') {
-        await handleGetOperations(res, login);
-        return;
-      }
-      if (req.method === 'POST') {
-        await handleCreateOperation(req, res, login);
-        return;
-      }
-      if (req.method === 'PUT' && opId) {
-        await handleUpdateOperation(req, res, login, opId);
-        return;
-      }
-      if (req.method === 'DELETE' && opId) {
-        await handleDeleteOperation(res, login, opId);
-        return;
-      }
-    }
+  if (subPath === 'state') {
+    if (req.method === 'GET') await handleGetState(res, login);
+    else if (req.method === 'PUT') await handleUpdateState(req, res, login);
+    else sendJson(res, 404, { error: 'not found' });
+    return;
+  }
 
-    if (req.method === 'GET') {
-      await handleGetUser(req, res, login);
-      return;
-    }
+  if (subPath === 'operations') {
+    if (req.method === 'GET') await handleGetOperations(res, login);
+    else if (req.method === 'POST') await handleCreateOperation(req, res, login);
+    else if (req.method === 'PUT' && opId) await handleUpdateOperation(req, res, login, opId);
+    else if (req.method === 'DELETE' && opId) await handleDeleteOperation(res, login, opId);
+    else sendJson(res, 404, { error: 'not found' });
+    return;
+  }
 
-    if (req.method === 'PUT') {
-      await handleUpdateUser(req, res, login);
-      return;
-    }
+  if (req.method === 'GET') {
+    await handleGetUser(res, login);
+    return;
+  }
+
+  if (req.method === 'PUT') {
+    await handleUpdateUser(req, res, login);
+    return;
   }
 
   sendJson(res, 404, { error: 'not found' });

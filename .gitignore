@@ -8,3 +8,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 users/
+.env
+.env.*
+coverage/
+.cache/

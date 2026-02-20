@@ -116,6 +116,18 @@ body {
   gap: 0.75rem;
 }
 
+.theme-toggle {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
 button {
   font: inherit;
   border: none;
@@ -422,6 +434,51 @@ button.ghost {
   margin-top: 0.5rem;
 }
 
+.panel.charts {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-card) 90%, var(--color-accent-soft) 10%), var(--color-card));
+}
+
+.panel.charts .panel-head {
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+  padding-bottom: 0.55rem;
+}
+
+.panel.insight {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-card) 95%, var(--color-accent-soft) 5%), var(--color-card));
+}
+
+.panel.insight .kpi-value {
+  font-size: 1.8rem;
+}
+
+.alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.alert-card {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 0.7rem 0.8rem;
+  background: color-mix(in srgb, var(--color-card) 92%, var(--color-bg) 8%);
+}
+
+.alert-card.warning {
+  border-color: #f59e0b;
+  background: color-mix(in srgb, #f59e0b 12%, var(--color-card) 88%);
+}
+
+.alert-card.danger {
+  border-color: #ef4444;
+  background: color-mix(in srgb, #ef4444 12%, var(--color-card) 88%);
+}
+
+.alert-card.info {
+  border-color: #38bdf8;
+  background: color-mix(in srgb, #38bdf8 10%, var(--color-card) 90%);
+}
+
 .chart-list {
   display: flex;
   flex-direction: column;
@@ -445,6 +502,7 @@ button.ghost {
 .pie {
   width: 100%;
   height: auto;
+  filter: drop-shadow(0 8px 18px color-mix(in srgb, var(--color-accent) 18%, transparent));
 }
 
 .pie-total {
@@ -477,6 +535,7 @@ button.ghost {
   width: 14px;
   height: 14px;
   border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-card) 70%, #000 30%);
 }
 
 .legend-name {
@@ -491,6 +550,22 @@ button.ghost {
   flex-direction: column;
   gap: 0.1rem;
   min-width: 0;
+}
+
+.theme-dark .panel.charts {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-card) 94%, var(--color-accent-soft) 6%), var(--color-card));
+}
+
+.theme-dark .panel.insight {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-card) 96%, var(--color-accent-soft) 4%), var(--color-card));
+}
+
+.theme-dark .pie {
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.45));
+}
+
+.theme-dark .legend-dot {
+  border-color: color-mix(in srgb, var(--color-border) 65%, #fff 35%);
 }
 
 @media (max-width: 720px) {
@@ -520,6 +595,10 @@ button.ghost {
   .dashboard-grid > .panel.goals,
   .dashboard-grid > .panel.budgets {
     grid-column: span 4;
+  }
+
+  .dashboard-grid > .panel.insight {
+    grid-column: span 6;
   }
 
   .dashboard-grid > .panel.transactions {
@@ -992,6 +1071,12 @@ button.ghost.danger {
   .nav-actions button {
     width: 100%;
     text-align: left;
+  }
+
+  .nav-actions .theme-toggle {
+    width: 42px;
+    text-align: center;
+    align-self: flex-start;
   }
 
   .nav-actions {
