@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.API_PORT || 3001;
 const DATA_DIR = path.join(__dirname, 'users');
-const DEFAULT_ACCOUNT = 'РћР±С‰РёР№ СЃС‡РµС‚';
+const DEFAULT_ACCOUNT = 'Общий счет';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -52,7 +52,7 @@ async function saveUser(userFile, data) {
 
 function sendJson(res, status, payload) {
   res.writeHead(status, {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json; charset=utf-8',
     ...CORS_HEADERS,
   });
   res.end(JSON.stringify(payload));
@@ -145,12 +145,12 @@ async function handleLogin(req, res) {
     try {
       ({ data: stored } = await loadUser(login));
     } catch {
-      sendUserNotFound(res, 'Р›РѕРіРёРЅ РЅРµ РЅР°Р№РґРµРЅ');
+      sendUserNotFound(res, 'Логин не найден');
       return;
     }
 
     if (stored.password !== password) {
-      sendJson(res, 401, { error: 'РќРµРїСЂР°РІРёР»СЊРЅС‹Р№ РїР°СЂРѕР»СЊ' });
+      sendJson(res, 401, { error: 'Неправильный пароль' });
       return;
     }
 
@@ -179,7 +179,7 @@ async function handleUpdateUser(req, res, login) {
       ({ data: stored } = await loadUser(login));
     } catch {
       if (!body.password) {
-        sendUserNotFound(res, 'Р›РѕРіРёРЅ РЅРµ РЅР°Р№РґРµРЅ');
+        sendUserNotFound(res, 'Логин не найден');
         return;
       }
       stored = { login, password: body.password, profile: {}, operations: [] };

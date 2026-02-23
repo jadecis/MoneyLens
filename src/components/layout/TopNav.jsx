@@ -13,6 +13,29 @@ export default function TopNav({
   onToggleTheme,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const themeIcon = isDark ? (
+    <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18">
+      <path
+        d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 1 0 9.8 9.8z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ) : (
+    <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18">
+      <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M12 2v2.2M12 19.8V22M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2 12h2.2M19.8 12H22M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 
   const goHome = () => {
     onHome();
@@ -90,7 +113,7 @@ export default function TopNav({
           aria-label={isDark ? 'Светлая тема' : 'Тёмная тема'}
           onClick={onToggleTheme}
         >
-          <span aria-hidden="true">{isDark ? '?' : '?'}</span>
+          <span aria-hidden="true">{themeIcon}</span>
         </button>
       </div>
     </header>
